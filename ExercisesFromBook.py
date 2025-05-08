@@ -100,7 +100,7 @@ sd.wait()
 '''
 
 # exercise 5
-
+'''
 def karplus_strong_note(frequency=110, duration=2.0, sample_rate=44100,
                         decay=0.996, excitation_type="short_noise"):
     delay_samples = int(sample_rate / frequency - 0.5)
@@ -144,3 +144,75 @@ chord /= len(frequencies)
 # Play the chord!
 sd.play(chord, samplerate=sample_rate)
 sd.wait()
+'''
+
+#exercise 6
+# Synth function (reused from before)
+def karplus_strong_note(frequency=110, duration=2.0, sample_rate=44100,
+                        decay=0.996, allpass_gain = 0.5, excitation_type="short_noise"):
+    delay_samples = int(sample_rate / frequency - 0.5)
+    buffer = np.zeros(delay_samples)
+    burst_len = min(10, delay_samples)
+    buffer[:burst_len] = np.random.uniform(-1, 1, burst_len)
+
+    output = np.zeros(int(sample_rate * duration))
+    prev_input = 0.0
+    prev_output = 0.0
+
+    for i in range(len(output)):
+        current = buffer[i % delay_samples]
+        next_sample = buffer[(i - 1) % delay_samples]
+        filtered = 0.5 * (current + next_sample)
+
+        #allpass filter
+        allpass_out = -allpass_gain * filtered + prev_input + allpass_gain * prev_output
+        prev_input = filtered
+        prev_output = allpass_out
+
+        buffer[i % delay_samples] = decay * filtered
+        output[i] = current
+    return output
+
+#Chord dictionary
+chords = {
+    "E minor": [82.41, 123.47, 164.81, 196.00, 246.94, 329.63],
+    "A major": [110.00, 138.59, 164.81, 220.00, 277.18, 329.63],
+    "C major": [130.81, 164.81, 196.00, 261.63, 329.63, 392.00],
+    "G major": [98.00, 123.47, 147.83, 196.00, 246.94, 392.00],
+}
+
+# 🎛 CLI Interface
+def play_chord_interface():
+    chord_names = list(chords.keys())
+
+    while True:
+        print("\nChoose a chord:")
+        for i, name in enumerate(chord_names):
+            print(f"{i + 1}. {name}")
+        print("0. Quit")
+
+        try:
+            choice = int(input("Enter number: ")) - 1
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+            continue
+
+        if choice == -1:
+            print("Goodbye!")
+            break
+        elif 0 <= choice < len(chord_names):
+            chord_name = chord_names[choice]
+            freqs = chords[chord_name]
+            print(f"Playing: {chord_name}")
+            duration = 2.0
+            sample_rate = 44100
+            chord_signal = np.zeros(int(sample_rate * duration))
+            for f in freqs:
+                chord_signal += karplus_strong_note(f, duration, sample_rate)
+            chord_signal /= len(freqs)  # normalize
+            sd.play(chord_signal, samplerate=sample_rate)
+            sd.wait()
+        else:
+            print("Invalid choice. Try again.")
+# ▶ Run it
+play_chord_interface()
