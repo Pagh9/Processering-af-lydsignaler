@@ -10,7 +10,10 @@ A_major_chord, sr = librosa.load("Downloaded guitar chords/single-acoustic-guita
 E4_Note, sr = librosa.load("Downloaded guitar chords/guitar-one-chord-string-hit_E_minor.wav")
 
 sd.play(A_major_chord, sr,blocking=True)
-sd.play(E4_Note,blocking=True)
+#sd.play(E4_Note,blocking=True)
+
+print(f"Total samples: {len(A_major_chord)}")
+print(f"Duration in seconds: {len(A_major_chord) / sr:.2f}")
 
 #ploting the C_major_chord as a spectogram
 plt.figure(figsize=(10, 4))
@@ -25,8 +28,8 @@ plt.show()
 
 #plotting C_Major_chord as a waveform
 plt.figure(figsize=(10, 4))
-plt.plot(E4_Note[:500])
-plt.title("Waveform of Real E4 Note")
+plt.plot(A_major_chord)
+plt.title("Waveform of Real A major Note")
 plt.xlabel("Sample")
 plt.ylabel("Amplitude")
 plt.grid(True)

@@ -10,34 +10,45 @@ chords = {
     "G String": [196.00],
 }
 
+def karplus_strong(frequency=110, duration=2.0, sample_rate=22050, decay=0.998,
+                   lp_coeff=0.5):
+    # Compute ideal (fractional) delay
+    ideal_delay = sample_rate / frequency
+    int_delay = int(np.floor(ideal_delay - 0.5))
+    fractional_part = ideal_delay - int_delay - 0.5
 
-def karplus_strong(frequency=110, duration=2.0, sample_rate=22050, decay=0.996, allpass_gain1 = 0.0, allpassgain2 = 0.5):
-    delay = int(sample_rate / frequency)
-    pluck_shape = np.hanning(delay)
-    buffer = np.random.uniform(-1, 1, delay) * pluck_shape
-    output = np.zeros(int(duration * sample_rate))
+    # Allpass coefficient for fractional delay
+    b = (1 - fractional_part) / (1 + fractional_part)
 
-    # all pass filter memory
-    prev_input = [0.0, 0.0]
-    prev_output = [0.0, 0.0]
+    # Initial buffer: noise burst shaped by Hanning window
+    buffer = np.random.uniform(-1, 1, int_delay)
+    buffer *= np.hanning(len(buffer))
 
-    for i in range(len(output)):
-        current = buffer[i % delay]
-        next_sample = buffer[(i+1)% delay]
-        avg = 0.5 * (current + next_sample)
+    output_len = int(sample_rate * duration)
+    output = np.zeros(output_len)
 
+    # Filter states
+    prev_lp_out = 0.0
+    ap_x1, ap_y1 = 0.0, 0.0  # allpass previous input/output
 
-        allpass_out = allpassgain2 * avg + allpass_gain1 * prev_input[0] + prev_input[1] - allpass_gain1 * prev_output[0] - allpassgain2 * prev_output[1]
-        prev_input[1] = prev_input[0]
-        prev_input[0] = avg
-        prev_output[1] = prev_output[0]
-        prev_output[0] = allpass_out
+    for n in range(output_len):
+        current = buffer[n % int_delay]
 
-        output[i] = allpass_out
-        buffer[i % delay] = decay * allpass_out
+        # --- 1. IIR Low-pass filter ---
+        lp_out = (1 - lp_coeff) * current + lp_coeff * prev_lp_out
+        prev_lp_out = lp_out
 
-    # Normalize to avoid  clipping
-    output = output / np.max(np.abs(output) + 1e-9)
+        # --- 2. Allpass filter for fractional delay ---
+        ap_out = b * lp_out + ap_x1 - b * ap_y1
+        ap_x1 = lp_out
+        ap_y1 = ap_out
+
+        # Output and feedback
+        output[n] = ap_out
+        buffer[n % int_delay] = decay * ap_out
+
+    # Normalize
+    output = output / (np.max(np.abs(output)) + 1e-9)
     return output
 
 
